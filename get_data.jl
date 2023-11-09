@@ -51,7 +51,7 @@ using StatsBase: shuffle
 
 
 # find the "root" directory of your project
-HOMEDIR = abspath(dirname("\This PC\C::\\Users\Riley Becker\.cdsapirc"))
+HOMEDIR = abspath(dirname())
 
 """
     download_single_level_data(year, filename, variable)
