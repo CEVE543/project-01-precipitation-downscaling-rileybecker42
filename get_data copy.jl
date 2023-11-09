@@ -273,7 +273,7 @@ function run_demo()
     # the path to the raw data folder
     data_dir = joinpath(HOMEDIR, "data", "raw")
 
-    years = 2019:2020 # example time range
+    years = 1970:2020 # example time range
     for year in years
 
         # Download 2m air temperature for the year 2020
@@ -281,26 +281,16 @@ function run_demo()
             year, joinpath(data_dir, "2m_temperature_$year.nc"), "2m_temperature"
         )
 
-        # Download 500 hPa geopotential for the year 2020
-        level = 500
-        download_pressure_level_data.(
-            year,
-            joinpath(data_dir, "$(level)hPa_geopotential_$year.nc"),
-            "geopotential",
-            level,
-        )
+        
     end
 
     # read in all the 2m temperature data
     fnames = shuffle(glob("2m_temperature", data_dir)) # shuffle -- should work even if out of order
     t2m = open_mfdataset(fnames, "t2m") # we sort based on time, so we don't need to sort here
 
-    # read in all the 500 hPa geopotential data
-    fnames = shuffle(glob("500hPa_geopotential", data_dir))
-    z500 = open_mfdataset(fnames, "z")
 
     display(t2m)
-    display(z500)
+
 
     return nothing
 end
