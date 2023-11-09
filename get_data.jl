@@ -42,12 +42,16 @@ Some advice so that you can avoid mistakes I have made
 - Use `abspath` to make sure that your files are saved in the right place. You can also use `joinpath` to make sure that your file paths are correct on different operating systems.
 - Make sure you understand this template code! Use AI tools and ask questions as needed.
 =#
+
+
 using CDSAPI
 using NCDatasets
 using StatsBase: shuffle
 
+
+
 # find the "root" directory of your project
-HOMEDIR = abspath(dirname(@__FILE__))
+HOMEDIR = abspath(dirname("\This PC\C::\\Users\Riley Becker\.cdsapirc"))
 
 """
     download_single_level_data(year, filename, variable)
