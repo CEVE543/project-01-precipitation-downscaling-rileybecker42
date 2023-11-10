@@ -289,6 +289,7 @@ function run_demo()
     t2m = open_mfdataset(fnames, "t2m") # we sort based on time, so we don't need to sort here
 
 
+
     display(t2m)
 
 
