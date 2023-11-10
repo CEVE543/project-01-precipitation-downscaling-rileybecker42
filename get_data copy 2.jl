@@ -268,29 +268,42 @@ function glob(pattern::AbstractString, dir::AbstractString=".")
     return matching_files
 end
 
+# Define a custom type for the dataset
+struct MyDataset
+    variable::AbstractArray
+    time::AbstractArray
+    other_coordinates::Dict{AbstractString, AbstractArray}
+end
+
+# Function to create a MyDataset from the output of open_mfdataset
+function create_dataset(data_dict)
+    return MyDataset(data_dict["t2m"], data_dict["time"], Dict())
+end
+
 function run_demo()
 
     # the path to the raw data folder
     data_dir = joinpath(HOMEDIR, "data", "raw")
 
     years = 1970:2020 # example time range
+    datasets = []# Create an empty array to store datasets for each year
+    
     for year in years
+
 
         # Download 2m air temperature for the year 2020
         download_single_level_data.(
             year, joinpath(data_dir, "2m_temperature_$year.nc"), "2m_temperature"
         )
 
-        
+
+        # read in all the 2m temperature data
+        fnames = shuffle(glob("2m_temperature", data_dir)) # shuffle -- should work even if out of order
+        t2m = open_mfdataset(fnames, "t2m") # we sort based on time, so we don't need to sort here
+
+        # Create a dataset for the current year and store it in the array
+        push!(datasets, create_dataset(t2m))
     end
-
-    # read in all the 2m temperature data
-    fnames = shuffle(glob("2m_temperature", data_dir)) # shuffle -- should work even if out of order
-    t2m = open_mfdataset(fnames, "t2m") # we sort based on time, so we don't need to sort here
-
-
-    display(t2m)
-
 
     return nothing
 end
