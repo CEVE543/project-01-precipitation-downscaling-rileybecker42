@@ -273,7 +273,7 @@ function run_demo()
     # the path to the raw data folder
     data_dir = joinpath(HOMEDIR, "data", "raw")
 
-    years = 2019:2020 # example time range
+    years = 1979:2023 # example time range
     for year in years
 
         # Download 2m air temperature for the year 2020
@@ -302,7 +302,7 @@ function run_demo()
     display(t2m)
     display(z500)
 
-    return nothing
+    return t2m
 end
 
 run_demo()
