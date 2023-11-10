@@ -51,7 +51,7 @@ using StatsBase: shuffle
 
 
 # find the "root" directory of your project
-HOMEDIR = abspath(dirname("c:/Users/Riley Becker/OneDrive/Documents/GitHub/project-01-precipitation-downscaling-rileybecker42/data"))
+HOMEDIR = abspath(dirname("c:/Users/Riley Becker/OneDrive/Documents/GitHub/project-01-precipitation-downscaling-rileybecker42/data/"))
 
 """
     download_single_level_data(year, filename, variable)
@@ -141,37 +141,7 @@ Download ERA5 pressure-level reanalysis data for a specified variable, year, and
 download_pressure_level_data(2020, "geopotential_500hPa_2020.nc", "geopotential", 500)
 ```
 """
-function download_pressure_level_data(
-    year::Int,
-    filename::AbstractString,
-    variable::AbstractString,
-    level::Int;
-    hours=0:23,
-    resolution=1.0,
-    bbox=[50, -130, 24, -65],
-)
-    if isfile(filename)
-        println("File $filename already exists. Skipping download.")
-        return nothing
-    end
 
-    return CDSAPI.retrieve(
-        "reanalysis-era5-pressure-levels",
-        CDSAPI.py2ju("""{
-                     "product_type": "reanalysis",
-                     "format": "netcdf",
-                     "variable": "$variable",
-                     "pressure_level": "$level",
-                     "year": "$year",
-                     "month": $(["$(lpad(i, 2, '0'))" for i in 1:12]),
-                     "day": $(["$(lpad(i, 2, '0'))" for i in 1:31]),
-                     "time": $(["$(lpad(hour, 2, '0')):00" for hour in hours]),
-                     "area": $bbox,
-                     "grid": ["$resolution", "$resolution"],
-                     }"""),
-        filename,
-    )
-end
 
 """
     open_mfdataset(files, variable_name)
