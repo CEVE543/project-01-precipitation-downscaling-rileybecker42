@@ -51,7 +51,7 @@ using StatsBase: shuffle
 
 
 # find the "root" directory of your project
-HOMEDIR = abspath(dirname("c:/Users/Riley Becker/OneDrive/Documents/GitHub/project-01-precipitation-downscaling-rileybecker42/data/"))
+HOMEDIR = abspath(dirname("c:/Users/Riley Becker/OneDrive/Documents/GitHub/project-01-precipitation-downscaling-rileybecker42/data"))
 
 """
     download_single_level_data(year, filename, variable)
