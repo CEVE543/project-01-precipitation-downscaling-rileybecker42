@@ -1,0 +1,58 @@
+---
+title: "Lab 06"
+subtitle: "$K$NN and PCA"
+jupyter: julia-1.9
+date: 2023-10-13
+author: Riley Becker (rb111)
+---
+
+# 1. Into
+```{julia}
+import Pkg; Pkg.add("MultivariateStats")
+import Pkg; Pkg.add("Plots")
+import Pkg; Pkg.add("NCDatasets")
+import Pkg; Pkg.add("StatsBase")
+import Pkg; Pkg.add("Unitful")
+using Dates
+using MultivariateStats
+using Plots
+using NCDatasets
+using StatsBase
+using Unitful
+Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
+```
+
+# 2. Data
+## 2a. Precipitation Data
+```{julia}
+precip_ds = NCDataset("data/raw/precip_tx.nc")
+```
+```{julia}
+precip_time = precip_ds["time"][:]
+precip_lon = precip_ds["lon"][:]
+precip_lat = precip_ds["lat"][:]
+precip_lat = reverse(precip_lat)
+precip = (precip_ds["precip"][:, :, :])
+precip = reverse(precip, dims=2)
+```
+```{julia}
+precip = precip.* 1u"mm"
+```
+```{julia}
+close(precip_ds)
+```
+```{julia}
+heatmap(precip_lon, precip_lat, precip[:,:,1]'; xlabel= "longitude", ylabel="Latitude", title= "Precipitation on $(precip_time[1])")
+```
+## 2b. Temperature Data
+```{julia}
+temp_time = t2m["time"]
+temp_lon = t2m["longitude"]
+temp_lat = t2m["latitude"]
+temp_lat = reverse(temp_lat)
+temp = t2m["t2m"]
+temp = temp .* 1u"K"
+```
+```{julia}
+display(t2m["t2m"])
+```
