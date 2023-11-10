@@ -34,21 +34,21 @@ Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 precip_ds = NCDataset("data/raw/precip_tx.nc")
 ```
 ```{julia}
-precip_time = precip_ds["time"][:]
+# Here, I'm creating variables from the precip_tx.nc dataset.
+precip_time = precip_ds["time"][:] 
 precip_lon = precip_ds["lon"][:]
 precip_lat = precip_ds["lat"][:]
-precip_lat = reverse(precip_lat)
+precip_lat = reverse(precip_lat) #The latitude needs to be reversed
 precip = (precip_ds["precip"][:, :, :])
-precip = reverse(precip, dims=2)
+precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the precipitation data
 ```
 ```{julia}
+# It is evident that the precipitation data is in millimeters, so I'm adding in units.
 precip = precip.* 1u"mm"
 ```
+
 ```{julia}
 close(precip_ds)
-```
-```{julia}
-heatmap(precip_lon, precip_lat, precip[:,:,1]'; xlabel= "longitude", ylabel="Latitude", title= "Precipitation on $(precip_time[1])")
 ```
 
 ```{julia}
@@ -70,9 +70,10 @@ end
 
 
 ```
-## 2b. Temperature Data
 
+## 2b. Temperature Data
 ```{julia}
+# ADD IN NOTES HERE
 temp_time = t2m["time"]
 temp_time = temp_time[1:392737]
 ```
@@ -90,26 +91,46 @@ temp = t2m["t2m"]
 ```{julia}
 temp = temp .* 1u"K"
 ```
-
 ```{julia}
-# Define a function to calculate daily averages
-function hourly_to_daily(time, data)
-    # Calculate the date part of each DateTime value
-    dates = Date.(time)
-
-    # Group data by date and calculate daily averages
-    daily_data = aggregate(data, dates, mean)
-    
-    # Extract the date from the grouped data
-    daily_time = first.(daily_data[1, :])
-
-    return daily_time, daily_data[2]
-end
-
-# Convert hourly to daily
-temp_time_daily, temp_daily = hourly_to_daily(temp_time, temp)
+temp_lat_matrix = hcat(temp_lat)
+```
+```{julia}
+temp_time_matrix = hcat(temp_time)
+```
+```{julia}
+temp_lon_matrix = hcat(temp_lon)
+```
+```{julia}
+temp_t2m_matrix = hcat(temp)
+```
+```{julia}
+INSERT FUNCTION TO MAKE TEMP & PRECIP TIME THE SAME
 ```
 
 # 3. Splitting Data
 ```{julia}
+#ADD IN NOTES HERE
+test_start_date = Date(2011, 1, 1) #CHANGE THIS
+test_start_index = searchsortedfirst(time, test_start_date)
+```
+```{julia}
+# Here I'm splitting my data into training & testing sets
 
+precip_train = precip[:, :, 1:test_start_index - 1]
+
+precip_test = precip[:, :, test_start_index:end]
+```
+```{julia}
+temp_train = temp[:, :, 1:test_start_index - 1]
+
+temp_test = temp[:, :, test_start_index:end]
+```
+```{julia}
+time_train = time[1:test_start_index - 1]
+time_test = time[test_start_index:end]
+```
+
+# 4. Preprocessing
+```{julia}
+
+# ADD IN EXPLANATION AS TO WHAT IM PREPROCESSING & WHY
