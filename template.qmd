@@ -13,12 +13,18 @@ import Pkg; Pkg.add("Plots")
 import Pkg; Pkg.add("NCDatasets")
 import Pkg; Pkg.add("StatsBase")
 import Pkg; Pkg.add("Unitful")
+```
+```{julia}
+import Pkg; Pkg.add("DataFrames")
+```
+```{julia}
 using Dates
 using MultivariateStats
 using Plots
 using NCDatasets
 using StatsBase
 using Unitful
+using DataFrames
 Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 ```
 
@@ -44,15 +50,46 @@ close(precip_ds)
 ```{julia}
 heatmap(precip_lon, precip_lat, precip[:,:,1]'; xlabel= "longitude", ylabel="Latitude", title= "Precipitation on $(precip_time[1])")
 ```
+
+```{julia}
+years 2001:2010
+
+accumulator = #some matrix, list
+
+ for year in years
+        # Download 2m air temperature for the year 2020
+       temporary_Variable = NCDataset(joinpath(data_dir, "2m_temperature_$year.nc"))
+       temp_values = temporary_Variable["t2m"][:,:,:]
+       
+       accumulator = concatonate(accumulator,temp_values,dims = 3)
+       close(temparary_Variable)
+end
+
+
+```
 ## 2b. Temperature Data
 ```{julia}
 temp_time = t2m["time"]
+temp_time = temp_time[1:392737]
+```
+```{julia}
 temp_lon = t2m["longitude"]
+```
+```{julia}
 temp_lat = t2m["latitude"]
 temp_lat = reverse(temp_lat)
+```
+```{julia}
 temp = t2m["t2m"]
+```
+```{julia}
 temp = temp .* 1u"K"
 ```
 ```{julia}
-display(t2m["t2m"])
+temp_dates = Date.(temp_time)
 ```
+```{julia}
+daily_temps = combine(DataFrames.groupby(temp_dates), t2m_values -> mean(t2m_values))
+```
+# 3. Splitting Data
+
