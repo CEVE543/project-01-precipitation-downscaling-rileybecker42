@@ -6,7 +6,7 @@ date: 2023-10-13
 author: Riley Becker (rb111)
 ---
 
-# 1. Into
+# 1. Intro
 ```{julia}
 import Pkg; Pkg.add("MultivariateStats")
 import Pkg; Pkg.add("Plots")
@@ -54,7 +54,10 @@ heatmap(precip_lon, precip_lat, precip[:,:,1]'; xlabel= "longitude", ylabel="Lat
 ```{julia}
 years 2001:2010
 
-accumulator = #some matrix, list
+var_data_list = []
+time_data_list = []
+lon_data_list = []
+lat_data_list = []
 
  for year in years
         # Download 2m air temperature for the year 2020
@@ -68,10 +71,12 @@ end
 
 ```
 ## 2b. Temperature Data
+
 ```{julia}
 temp_time = t2m["time"]
 temp_time = temp_time[1:392737]
 ```
+
 ```{julia}
 temp_lon = t2m["longitude"]
 ```
@@ -85,11 +90,26 @@ temp = t2m["t2m"]
 ```{julia}
 temp = temp .* 1u"K"
 ```
+
 ```{julia}
-temp_dates = Date.(temp_time)
+# Define a function to calculate daily averages
+function hourly_to_daily(time, data)
+    # Calculate the date part of each DateTime value
+    dates = Date.(time)
+
+    # Group data by date and calculate daily averages
+    daily_data = aggregate(data, dates, mean)
+    
+    # Extract the date from the grouped data
+    daily_time = first.(daily_data[1, :])
+
+    return daily_time, daily_data[2]
+end
+
+# Convert hourly to daily
+temp_time_daily, temp_daily = hourly_to_daily(temp_time, temp)
 ```
-```{julia}
-daily_temps = combine(DataFrames.groupby(temp_dates), t2m_values -> mean(t2m_values))
-```
+
 # 3. Splitting Data
+```{julia}
 
