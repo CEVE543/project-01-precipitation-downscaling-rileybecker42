@@ -31,11 +31,12 @@ Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 # 2. Data
 ## 2a. Precipitation Data
 ```{julia}
-precip_ds = NCDataset("data/raw/precip_tx.nc")
+precip_ds = NCDataset("data/raw/precip_tx.nc") #loading in the precip_tx.nc dataset
 ```
 ```{julia}
 # Here, I'm creating variables from the precip_tx.nc dataset.
-precip_time = precip_ds["time"][:] 
+precip_time = precip_ds["time"][:]
+precip_time = Date.(precip_time)
 precip_lon = precip_ds["lon"][:]
 precip_lat = precip_ds["lat"][:]
 precip_lat = reverse(precip_lat) #The latitude needs to be reversed
@@ -48,10 +49,10 @@ precip = precip.* 1u"mm"
 ```
 
 ```{julia}
-close(precip_ds)
+close(precip_ds) #closing the dataset
 ```
 
-```{julia}
+```julia
 years 2001:2010
 
 var_data_list = []
@@ -77,38 +78,49 @@ end
 # ADD IN NOTES HERE
 temp_time = t2m["time"]
 temp_time = temp_time[1:392737]
+temp_time = hcat(temp_time)
 ```
 
 ```{julia}
 temp_lon = t2m["longitude"]
+temp_lon = hcat(temp_lon)
 ```
 ```{julia}
-temp_lat = t2m["latitude"]
+temp_lon_unique = unique(temp_lon)
+```
+```{julia}
+temp_lat = t2m["latitude"] #Just like precip_lat, temp_lat also needs to be reversed.
 temp_lat = reverse(temp_lat)
+temp_lat = hcat(temp_lat)
 ```
 ```{julia}
-temp = t2m["t2m"]
+temp_lat_unique = unique(temp_lat)
 ```
 ```{julia}
-temp = temp .* 1u"K"
+temp = reduce(hcat, t2m["t2m"])
 ```
-```{julia}
-temp_lat_matrix = hcat(temp_lat)
-```
-```{julia}
-temp_time_matrix = hcat(temp_time)
-```
-```{julia}
-temp_lon_matrix = hcat(temp_lon)
-```
-```{julia}
-temp_t2m_matrix = hcat(temp)
-```
-```{julia}
-INSERT FUNCTION TO MAKE TEMP & PRECIP TIME THE SAME
-```
-```{julia}
 
+lat_len = length(temp_lat_unique)
+lon_len = length(temp_lon_unique)
+time_len = length(temp_time)
+
+temp = reshape(temp, lat_len, lon_len, time_len)
+```
+
+
+```{julia}
+#INSERT FUNCTION THAT MAKES TEMP AND PRECIP TIME THE SAME
+temp_date = Date.(temp_time)
+temp_date = unique(temp_date)
+```
+```{julia}
+@assert temp_date == precip_time
+```
+```{julia}
+time = Date.(precip_time)
+```
+```julia
+# Here I'm reshaping the t2m dictionary (from get_data.jl) into a matrix
 # Extract t2m values
 temp = t2m["t2m"]
 
