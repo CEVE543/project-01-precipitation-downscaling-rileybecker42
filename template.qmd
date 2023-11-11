@@ -39,41 +39,101 @@ precip_time = precip_ds["time"][:]
 precip_time = Date.(precip_time)
 precip_lon = precip_ds["lon"][:]
 precip_lat = precip_ds["lat"][:]
-precip_lat = reverse(precip_lat) #The latitude needs to be reversed
-precip = (precip_ds["precip"][:, :, :])
-precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the precipitation data
+precip_lat = reverse(precip_lat) #The latitude needs to be reversed.
+precip = (precip_ds["precip"][:, :, :])*.1u"mm" #this precipitation data is in millimeters, so I'm adding in units.
+precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the precipitation data.
 ```
-```{julia}
-# It is evident that the precipitation data is in millimeters, so I'm adding in units.
-precip = precip.* 1u"mm"
-```
-
 ```{julia}
 close(precip_ds) #closing the dataset
 ```
 
-```julia
-years 2001:2010
+## 2b. Temperature Data
+### Loading in Temperature Data
+```{julia}
+function open_mfdataset(files::Vector{String}, variable_name::AbstractString)
+    # Lists to store variable data, time data, and other coordinate data
+    var_data_list = []
+    time_data_list = []
+    coords_data_dict = Dict()
 
-var_data_list = []
-time_data_list = []
-lon_data_list = []
-lat_data_list = []
+    # Open the first file to get the coordinate names (excluding time and the main variable)
+    ds = Dataset(files[1])
+    dimnames = keys(ds.dim)
+    coord_names = setdiff(collect(dimnames), [variable_name, "time"])
+    close(ds)
 
- for year in years
-        # Download 2m air temperature for the year 2020
-       temporary_Variable = NCDataset(joinpath(data_dir, "2m_temperature_$year.nc"))
-       temp_values = temporary_Variable["t2m"][:,:,:]
-       
-       accumulator = concatonate(accumulator,temp_values,dims = 3)
-       close(temparary_Variable)
+    # Initialize lists for each coordinate in coords_data_dict
+    for coord in coord_names
+        coords_data_dict[coord] = []
+    end
+
+    # Open each file, extract data, and store in lists
+    for file in files
+        ds = Dataset(file)
+
+        # Store variable and time data
+        push!(var_data_list, ds[variable_name][:])
+        push!(time_data_list, ds["time"][:])
+
+        # Store other coordinate data
+        for coord in coord_names
+            push!(coords_data_dict[coord], ds[coord][:])
+        end
+
+        close(ds)
+    end
+
+    # Pair variable data with time data and sort by time
+    sorted_pairs = sort(collect(zip(time_data_list, var_data_list)); by=x -> x[1])
+    sorted_time_data = [pair[1] for pair in sorted_pairs]
+    sorted_var_data = [pair[2] for pair in sorted_pairs]
+
+    # Concatenate sorted data
+    concatenated_data_dict = Dict(
+        variable_name => vcat(sorted_var_data...), "time" => vcat(sorted_time_data...)
+    )
+
+    # Concatenate coordinate data and add to the dictionary
+    for coord in coord_names
+        concatenated_data_dict[coord] = vcat(coords_data_dict[coord]...)
+    end
+
+    return concatenated_data_dict
 end
 
+function glob(pattern::AbstractString, dir::AbstractString=".")
+    # Convert the glob-like pattern to a regex pattern
+    regex_pattern = replace(pattern, "*" => ".*")
+    regex_pattern = Regex(regex_pattern)
 
+    # List all files in the directory and filter by the regex pattern
+    matching_files = filter(
+        filename -> occursin(regex_pattern, filename), readdir(dir; join=true)
+    )
+
+    return matching_files
+end
+
+function run_demo()
+    global t2m
+    # the path to the raw data folder
+    data_dir = joinpath(HOMEDIR, "data", "raw")
+    years = 1979:2023 # example time range
+    for year in years
+        # Download 2m air temperature for the year 2020
+        download_single_level_data.(
+            year, joinpath(data_dir, "2m_temperature_$year.nc"), "2m_temperature"
+        )        
+    end
+    # read in all the 2m temperature data
+    fnames = shuffle(glob("2m_temperature", data_dir)) # shuffle -- should work even if out of order
+    t2m = open_mfdataset(fnames, "t2m") # we sort based on time, so we don't need to sort here
+    
+    return t2m
+end
 ```
 
-## 2b. Temperature Data
-
+### Temperature Variables
 ```{julia}
 # ADD IN NOTES HERE
 temp_time = t2m["time"]
