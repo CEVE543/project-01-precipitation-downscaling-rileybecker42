@@ -72,6 +72,7 @@ end
 ```
 
 ## 2b. Temperature Data
+
 ```{julia}
 # ADD IN NOTES HERE
 temp_time = t2m["time"]
@@ -105,6 +106,18 @@ temp_t2m_matrix = hcat(temp)
 ```
 ```{julia}
 INSERT FUNCTION TO MAKE TEMP & PRECIP TIME THE SAME
+```
+```{julia}
+
+# Extract t2m values
+temp = t2m["t2m"]
+
+# Assuming the other vectors are consistent in length
+rows = length(t2m["time"])
+cols = length(t2m["latitude"]) * length(t2m["longitude"])
+
+# Reshape t2m into a matrix
+temp_matrix = reshape(t2m, rows, cols)
 ```
 
 # 3. Splitting Data
