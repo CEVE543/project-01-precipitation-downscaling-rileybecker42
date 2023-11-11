@@ -47,6 +47,9 @@ precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to d
 close(precip_ds) #closing the dataset
 ```
 
+```{julia}
+close(temp_ds)
+```
 ## 2b. Temperature Data
 ### Loading in Temperature Data
 ```{julia}
@@ -101,6 +104,9 @@ function open_mfdataset(files::Vector{String}, variable_name::AbstractString)
     return concatenated_data_dict
 end
 ```
+
+
+
 ```{julia}
 using CDSAPI
 base_path = "data/raw"
@@ -112,65 +118,94 @@ file_paths = [joinpath(base_path, file) for file in files]
 ```{julia}
 t2m = open_mfdataset(file_paths, "t2m")
 ```
+
+
+
 ### Temperature Variables
-```{julia}
-# ADD IN NOTES HERE
-temp_time = t2m["time"]
-temp_time = temp_time[732:end]
-```
-temp_time = hcat(temp_time)
-```
 
 ```{julia}
-temp_lon = t2m["longitude"]
-temp_lon = hcat(temp_lon)
+start_date = Date(t2m["time"][1])
+end_date = Date(t2m["time"][end])
+
+println(start_date)
+println(end_date)
+
+# Calculate the number of days between the two dates
+num_days = (end_date) - (start_date) 
+num_days = Dates.value(num_days) + 1
+num_years = (Dates.year(end_date) - Dates.year(start_date)) + 1
+
+println("Number of days from $(Dates.year(start_date)) to $(Dates.year(end_date)): $num_days and $num_years years" )
+
+n_lon = Int(length(t2m["longitude"])/(num_years))
+n_lat = Int(length(t2m["latitude"])/(num_years))
+
+temp_long = t2m["longitude"][1:n_lon]
+temp_lat = t2m["latitude"][1:n_lat]
+
+println("n_lon = $n_lon ")
+println("n_lat = $n_lat ")
+
+data_dict_temp = reshape(t2m["t2m"], (n_lon,n_lat,num_days*24))
+
+```
+```{julia}
+#Creating a function that transforms time & temperature to daily instead of hourly
+function hourly_to_daily(hourly_data, timestamps)
+    daily_data = Union{Missing, Float64}[]
+    unique_dates = unique(Dates.Date.(timestamps))
+    
+    for date in unique_dates
+        indices = findall(x -> Dates.Date(x) == date, timestamps)
+        daily_value = mean(hourly_data[indices])
+        push!(daily_data, daily_value)
+    end
+    
+    return daily_data, unique_dates
+end
+
+# Assuming "t2m" is the hourly temperature data, and "time" is the corresponding timestamps
+hourly_temperature = t2m["t2m"]
+timestamps = t2m["time"]
+
+daily_temperature, daily_dates = hourly_to_daily(hourly_temperature, timestamps)
+
+# Create a new dictionary for daily data
+daily_t2m = Dict(
+    "latitude" => t2m["latitude"],
+    "longitude" => t2m["longitude"],
+    "time" => daily_dates,
+    "t2m" => daily_temperature
+)
+# Print the first few elements of the new daily data
+daily_t2m
 ```
 
 ```{julia}
-temp_lat = t2m["latitude"] #Just like precip_lat, temp_lat also needs to be reversed.
-temp_lat = reverse(temp_lat)
+temp_lat = reverse(daily_t2m["latitude"])
+temp_lon = daily_t2m["longitude"]
+temp_time = daily_t2m["time"][732:16365]
+temp = daily_t2m["t2m"][732:16365]
 ```
-temp_lat = hcat(temp_lat)
+```{julia}
+reshaped_t2m = permutedims(reshape(temp, length(temp_lat), length(temp_lon), :), (3, 1, 2))
 ```
 
 ```{julia}
-temp = t2m["t2m"]
-```
-
-```{julia}
-
-start_date = Date(temp_time[1])
-end_date = Date(temp_time[end])
-
-n_days = (end_date) - (start_date)
-```
-lat_len = Int(length(temp_lat)/())
-lon_len = Int(length(temp_lon)/())
-time_len = length(temp_time)
-
-temp = reshape(temp, lat_len, lon_len, time_len)
-```
-
-
-```{julia}
-#INSERT FUNCTION THAT MAKES TEMP AND PRECIP TIME THE SAME
-temp_date = Date.(temp_time)
-temp_date = unique(temp_date)
-```
-```{julia}
-@assert temp_date == precip_time
+@assert temp_time == precip_time
 ```
 ```{julia}
 time = Date.(precip_time)
 ```
+
 ```julia
 # Here I'm reshaping the t2m dictionary (from get_data.jl) into a matrix
 # Extract t2m values
 temp = t2m["t2m"]
 
 # Assuming the other vectors are consistent in length
-rows = length(t2m["time"])
-cols = length(t2m["latitude"]) * length(t2m["longitude"])
+rows = length(daily_t2m["time"])
+cols = length(daily_t2m["latitude"]) * length(daily_t2m["longitude"])
 
 # Reshape t2m into a matrix
 temp_matrix = reshape(t2m, rows, cols)
@@ -179,7 +214,7 @@ temp_matrix = reshape(t2m, rows, cols)
 # 3. Splitting Data
 ```{julia}
 #ADD IN NOTES HERE
-test_start_date = Date(2011, 1, 1) #CHANGE THIS
+test_start_date = Date(2010, 12, 18) #CHANGE THIS
 test_start_index = searchsortedfirst(time, test_start_date)
 ```
 ```{julia}
@@ -190,9 +225,9 @@ precip_train = precip[:, :, 1:test_start_index - 1]
 precip_test = precip[:, :, test_start_index:end]
 ```
 ```{julia}
-temp_train = temp[:, :, 1:test_start_index - 1]
+temp_train = temp[1:test_start_index - 1]
 
-temp_test = temp[:, :, test_start_index:end]
+temp_test = temp[test_start_index:end]
 ```
 ```{julia}
 time_train = time[1:test_start_index - 1]
