@@ -13,8 +13,6 @@ import Pkg; Pkg.add("Plots")
 import Pkg; Pkg.add("NCDatasets")
 import Pkg; Pkg.add("StatsBase")
 import Pkg; Pkg.add("Unitful")
-```
-```{julia}
 import Pkg; Pkg.add("DataFrames")
 ```
 ```{julia}
@@ -35,12 +33,12 @@ precip_ds = NCDataset("data/raw/precip_tx.nc") #loading in the precip_tx.nc data
 ```
 ```{julia}
 # Here, I'm creating variables from the precip_tx.nc dataset.
-precip_time = precip_ds["time"][732:end]
+precip_time = precip_ds["time"][11324:15341] #saving the time data from 2010 through 2020
 precip_time = Date.(precip_time)
 precip_lon = precip_ds["lon"][:]
 precip_lat = precip_ds["lat"][:]
 precip_lat = reverse(precip_lat) #The latitude needs to be reversed.
-precip = (precip_ds["precip"][:, :, 732:end])*.1u"mm" #this precipitation data is in millimeters, so I'm adding in units.
+precip = (precip_ds["precip"][:, :,11324:15341])*.1u"mm" #this precipitation data is in millimeters, so I'm adding in units.
 precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the precipitation data.
 ```
 ```{julia}
@@ -243,88 +241,97 @@ temp20 = reverse(temp20, dims=2)
 ```{julia}
 close(temp20_ds)
 ```
-### Creating One Large Dataset That Combines all Temp Datasets
+
+### Creating One Large Dataset That Combines all Temp Dat
 ```{julia}
-# Function to load and process temperature data for a specific year
-function load_and_process_temperature_data(year)
+combined_temp_time = cat(temp10_time, temp11_time, temp12_time, temp13_time, temp14_time, temp15_time, temp16_time, temp17_time, temp18_time, temp19_time, temp20_time, dims=1)
+```
+```{julia}
+combined_temp = cat(temp10, temp11, temp12, temp13, temp14, temp15, temp16, temp17, temp18, temp19, temp20, dims=3)
+```
+
+### Converting Times to Daily Instead of Hourly
+```{julia}
+# Function to read temperature data for a given year
+function read_temperature_data(year)
     ds = NCDataset("data/raw/2m_temperature_$(year).nc")
+    
     time = Date.(ds["time"])
     lon = ds["longitude"][:]
     lat = reverse(ds["latitude"][:])
     temp = (ds["t2m"][:, :, :]) * 0.1u"K"
     temp = reverse(temp, dims=2)
+    
     close(ds)
+    
     return time, lon, lat, temp
 end
 
-# Combine data for each year into one large dataset
-function create_combined_dataset(years)
-    all_time = []
-    all_lon = []
-    all_lat = []
-    all_temp = []
+# Function to aggregate hourly data to daily data
+function aggregate_to_daily(time, temp)
+    unique_dates = unique(time)
+    daily_temp = []
 
-    for year in years
-        time, lon, lat, temp = load_and_process_temperature_data(year)
-        append!(all_time, time)
-        append!(all_lon, lon)
-        append!(all_lat, lat)
-        append!(all_temp, temp)
+    for date in unique_dates
+        indices = findall(x -> x == date, time)
+        daily_mean = mean(temp[:, :, indices], dims=3)
+        push!(daily_temp, daily_mean)
     end
 
-    combined_dataset = CombinedDataset(
-        convert(Vector{Date}, all_time),
-        convert(Vector{Float64}, all_lon),
-        convert(Vector{Float64}, all_lat),
-        convert(Vector{Float64}, all_temp)
-    )
-
-    return combined_dataset
+    return unique_dates, cat(daily_temp..., dims=3)
 end
-```
-```{julia}
-# Specify the years for which you want to create the combined dataset
+
+# Years to process
 years = 2010:2020
 
-# Create the combined dataset
-combined_dataset = create_combined_dataset(years)
+# Initialize arrays to store aggregated data
+all_aggregated_times = []
+all_aggregated_temps = []
+
+# Loop over years and read/aggregate data
+for year in years
+    time, _, _, temp = read_temperature_data(year)
+    aggregated_times, aggregated_temp = aggregate_to_daily(time, temp)
+    
+    push!(all_aggregated_times, aggregated_times)
+    push!(all_aggregated_temps, aggregated_temp)
+end
+
+# Combine aggregated data
+combined_aggregated_times = cat(all_aggregated_times..., dims=1)
+combined_aggregated_temps = cat(all_aggregated_temps..., dims=3)
 ```
 
 ### Temperature Variables
 
 ```{julia}
-temp_lat = reverse(daily_t2m["latitude"])
-temp_lon = daily_t2m["longitude"]
-temp_time = daily_t2m["time"][732:16365]
-temp = daily_t2m["t2m"][732:16365]
+temp_lat = temp10_lat #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
+temp_lon = temp10_lon #All of the lon data from the different temp datasets are the same, so I represent the lon for the whole temp data just as one of lon variables I made earlier
+temp_time = combined_aggregated_times
+temp = combined_aggregated_temps
 ```
 
 ```{julia}
 @assert temp_time == precip_time
 ```
 ```{julia}
-time = Date.(precip_time)
+time = Dates.Date.(temp_time)
 ```
 
-# 3. Splitting Data
+# 3. Splitting Data into Testing & Training data
 ```{julia}
-#ADD IN NOTES HERE
-test_start_date = Date(2010, 12, 18) #CHANGE THIS
-test_start_index = searchsortedfirst(time, test_start_date)
+test_start_date = Date(2017, 09, 13) #Splitting the test and training data 70%-30%
+test_start_index = searchsortedfirst(temp_time, test_start_date)
 ```
 ```{julia}
 # Here I'm splitting my data into training & testing sets
 
 precip_train = precip[:, :, 1:test_start_index - 1]
-
 precip_test = precip[:, :, test_start_index:end]
-```
-```{julia}
-temp_train = temp[1:test_start_index - 1]
 
+temp_train = temp[1:test_start_index - 1]
 temp_test = temp[test_start_index:end]
-```
-```{julia}
+
 time_train = time[1:test_start_index - 1]
 time_test = time[test_start_index:end]
 ```
