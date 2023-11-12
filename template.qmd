@@ -30,9 +30,8 @@ import Pkg; Pkg.add("Plots")
 import Pkg; Pkg.add("NCDatasets")
 import Pkg; Pkg.add("StatsBase")
 import Pkg; Pkg.add("Unitful")
-```
-```{julia}
 import Pkg; Pkg.add("DataFrames")
+import Pkg; Pkg.add("DecisionTree")
 ```
 ```{julia}
 using Dates
@@ -42,6 +41,7 @@ using NCDatasets
 using StatsBase
 using Unitful
 using DataFrames
+using DecisionTree
 Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 ```
 
@@ -319,46 +319,16 @@ combined_aggregated_temps = cat(all_aggregated_temps..., dims=3)
 ## 2.4 Establishing Temperature Variables
 
 ```{julia}
-temp_lat = temp10_lat[:14] #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
+temp_lat = temp10_lat[1:14] #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
 temp_lon = temp10_lon[30:41] #All of the lon data from the different temp datasets are the same, so I represent the lon for the whole temp data just as one of lon variables I made earlier
 temp_time = combined_aggregated_times
-temp = combined_aggregated_temps[30:41,:14,:]
+temp = combined_aggregated_temps[30:41,1:14,:]
 ```
 :::{.callout-note}
 I'm also matching the latitude and longitude ranges of the temperature data to match with the precipitation data here. 
+:::
 ```{julia}
-@assert temp_time == precip_time
-```
-
-## 2.5 Filtering Data for Desired Latitude & Longitude Range
-```{julia}
-function subset_temperature_data(temp_lat, temp_lon, temp_data, target_lat_range, target_lon_range)
-    lat_indices = findall(x -> x >= target_lat_range[1] && x <= target_lat_range[2], temp_lat)
-    lon_indices = findall(x -> x >= target_lon_range[1] && x <= target_lon_range[2], temp_lon)
-
-    subset_temp_lat = temp_lat[lat_indices]
-    subset_temp_lon = temp_lon[lon_indices]
-
-    subset_temp_data = temp_data[lat_indices, lon_indices, :]
-
-    return subset_temp_lat, subset_temp_lon, subset_temp_data
-end
-```
-```{julia}
-# Specify the desired latitude and longitude ranges for temperature data
-target_lat_range = (25.0f0, 37.0f0)
-target_lon_range = (-102.0f0, -90.0f0)
-
-# Call the function to get the subset of temperature data
-subset_temp_lat, subset_temp_lon, subset_temp = subset_temperature_data(
-    temp_lat, temp_lon, temp, target_lat_range, target_lon_range
-)
-```
-```{julia}
-# Update temperature variables with the subset
-temp_lat = subset_temp_lat
-temp_lon = subset_temp_lon
-temp = subset_temp
+@assert temp_time == precip_time #Making sure that my two time variables are the same
 ```
 
 ```{julia}
@@ -384,16 +354,18 @@ time_test = temp_time[test_start_index:end]
 ```
 
 # 4. Preprocessing
-```{julia}
-# ADD IN EXPLANATION AS TO WHAT IM PREPROCESSING & WHY
 
-function preprocess(temp::Array{T,3}, temp_ref::Array{T,3})::AbstractMatrix where {T}
-    n_lon, n_lat, n_t = size(temp)
-    climatology = mean(temp_ref; dims=3)
+:::{callout-note}
+ADD IN EXPLANATION AS TO WHAT IM PREPROCESSING & WHY
+:::
+```{julia}
+function preprocess(temp::Array{T,3}, temp_reference::Array{T,3})::AbstractMatrix where {T}
+    n_lon, n_lat, n_time = size(temp)
+    climatology = mean(temp_reference; dims=3)
     temp_anom = temp .- climatology
 
     #reshape to 2D
-    temp_anom = reshape(temp_anom, n_lon * n_lat, n_t)
+    temp_anom = reshape(temp_anom, n_lon * n_lat, n_time)
 
     #stripping units
     return ustrip.(u"K", temp_anom)
@@ -401,8 +373,8 @@ end
 ```
 
 ```{julia}
-#output: false
-n_lon,n_lat,n_t =size(temp)
+n_lon, n_lat, n_time = size(temp)
+
 temp_mat_train = preprocess(temp_train, temp_train)
 temp_mat_test = preprocess(temp_test, temp_train)
 ```
@@ -420,10 +392,12 @@ p2 = plot(cumsum(principalvars(pca_model))/var(pca_model); xlabel="# of PC's", x
 
 plot(p1,p2; layout=(1,2), size=(900,400))
 ```
-
+:::{.callout-note}
+DISCUSS WHY I CHOSE THE NUMBER OF PCS THAT I CHOSE
+:::
 ```{julia}
 p = []
-for i in 1:4
+for i in 1:3
     pc = projection(pca_model)[:, i]
     pc_reshape = reshape(pc, n_lon, n_lat)'
     pi = heatmap(
@@ -438,14 +412,15 @@ for i in 1:4
     )
     push!(p, pi)
 end
-plot(p...; layout=(1, 4), size=(1800, 600))
+plot(p...; layout=(1, 3), size=(1800, 600))
 ```
 
 ```{julia}
-pc_ts = predict(pca_model, temp_mat_train)
+pc_ts = StatsBase.predict(pca_model, temp_mat_train)
 day_of_year = Dates.dayofyear.(temp_time)
+
 p = []
-for i in 1:4
+for i in 1:3
     pi = scatter(
         day_of_year,
         pc_ts[i, :];
@@ -458,57 +433,67 @@ for i in 1:4
     )
     push!(p, pi)
 end
-plot(p...; layout=(1, 4), size=(1800, 600))
+plot(p...; layout=(1, 3), size=(1800, 600))
 ```
 
 ```{julia}
-avg_precip =ustrip.(u"mm", [mean(skipmissing(precip_train[:, :, t])) for t in 1:size(precip_train, 4)])
-avg_precip = replace(avg_precip, NaN => 0)
+Months = Dates.month.(temp_time)
 
-p1_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
+p=[]
+for i in 1:3
+    pi=scatter(
+        Months,
+        pc_ts[i, :];
+        xlabel= "Months in a Year",
+        ylabel = "PC $i",
+        title = "PC $i",
+        label = false,
+        alpha= 0.3,
+        color=:blue,
+        xticks =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    )
+    push!(p, pi)
+end
+plot(p...; layout=(1,3), size=(1800, 600))    
+```
+
+```{julia}
+avg_precip = ustrip.(u"mm", [mean(skipmissing(precip_train[:, :, t])) for t in 1:size(precip_train, 3)])
+avg_precip = replace(avg_precip, NaN => 0)
+```
+
+```{julia}
 p1 = scatter(
     pc_ts[2, :],
     pc_ts[3, :];
-    zcolor=avg_precip[p1_idx],
+    zcolor=avg_precip,
     xlabel="PC 2",
     ylabel="PC 3",
     markersize=3,
     clims=(0, 2.75),
-    title="Rainy Days",
+    title="All Days",
     label=false
 )
 
 p2_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
 p2 = scatter(
-    pc_ts[4, p2_idx],
+    pc_ts[2, p2_idx],
     pc_ts[3, p2_idx];
     zcolor=avg_precip[p2_idx],
-    xlabel="PC 4",
+    xlabel="PC 2",
     ylabel="PC 3",
     markersize=5,
     clims=(0, 2.75),
     title="Rainy Days",
     label=false
 )
-
-p3_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
-p3 = scatter(
-    pc_ts[4, p3_idx],
-    pc_ts[2, p3_idx];
-    zcolor=avg_precip[p3_idx],
-    xlabel="PC 4",
-    ylabel="PC 2",
-    markersize=5,
-    clims=(0, 2.75),
-    title="Rainy Days",
-    label=false
-)
-
-plot(p1, p2, p3; size=(1800, 600), link=:both)
+plot(p1, p2; size=(1800, 600), link=:both)
 ```
+:::{.callout-note}
+DISCUSS WHAT YOU LEARNED FROM THE PLOTS HERE
+:::
 
-# 6. K-NN
-
+# 6. K-NN Model
 ```{julia}
 function euclidean_distance(x::AbstractVector, y::AbstractVector)::AbstractFloat
     return sqrt(sum((x .- y) .^ 2))
@@ -537,8 +522,8 @@ function predict_knn(temp_train, temp_test, precip_train; n_pca::Int)
     pca_model = fit(PCA, X_train; maxoutdim=n_pca)
 
     # project the test data onto the PCA basis
-    train_embedded = predict(pca_model, X_train)
-    test_embedded = predict(pca_model, X_test)
+    train_embedded = StatsBase.predict(pca_model, X_train)
+    test_embedded = StatsBase.predict(pca_model, X_test)
 
     # use the `knn` function for each point in the test data
     precip_pred = map(1:size(X_test, 2)) do i
@@ -549,14 +534,13 @@ function predict_knn(temp_train, temp_test, precip_train; n_pca::Int)
     return precip_pred
 end
 
-predict_knn
 ```
-
 
 ```{julia}
 t_sample = rand(1:size(temp_test, 3), 3)
 precip_pred = predict_knn(temp_train, temp_test[:, :, t_sample], precip_train; n_pca=3)
-
+```
+```{julia}
 p = map(eachindex(t_sample)) do ti
     t = t_sample[ti]
     y_pred = precip_pred[ti]'
@@ -589,4 +573,78 @@ p = map(eachindex(t_sample)) do ti
     plot(p1, p2; layout=(2, 1), size=(1000, 400))
 end
 plot(p...; layout=(2, 3), size=(1500, 1200))
+```
+
+
+# 7. Model #2: Random Forests Model
+
+```{julia}
+# Making temp_mat_train and temp_mat_test are preprocessed temperature data
+X_train1 = temp_mat_train'
+X_test1 = temp_mat_test'
+
+# Making avg_precip my target variable (response variable)
+y_train1 = avg_precip
+```
+```{julia}
+# Number of decision trees in the forest
+n_trees = 10
+
+# Train the Random Forest model
+model = build_forest(y_train1, X_train1, n_trees)
+```
+```{julia}
+# Make predictions on the testing data
+y_pred = apply_forest(model, X_test1)
+```
+
+# 8. Quantile-Quantile Mapping: Bias Correction
+
+```{julia}
+function qq_mapping(predicted_data, observed_data)
+    # Flatten the arrays
+    predicted_flat = vec(skipmissing(predicted_data))
+    observed_flat = vec(skipmissing(observed_data))
+
+    # Sort the data
+    sort_predicted = sort(predicted_flat)
+    sort_observed = sort(observed_flat)
+
+    # Calculate quantiles
+    quantiles_predicted = collect(1:length(sort_predicted)) / length(sort_predicted)
+    quantiles_observed = collect(1:length(sort_observed)) / length(sort_observed)
+
+    # Map quantiles using interpolation
+    mapped_values = interp1(quantiles_predicted, sort_predicted, quantiles_observed)
+
+    # Reshape the mapped values to the original shape
+    mapped_precipitation = reshape(mapped_values, size(observed_data))
+
+    return mapped_precipitation
+end
+
+# Apply Q-Q mapping
+mapped_precipitation = qq_mapping(precip_pred, precip_test)
+
+# Visualization of Q-Q mapping results
+heatmap(precip_lon, precip_lat, mapped_precipitation[:, :, 1]'; xlabel="Longitude", ylabel="Latitude", title="Mapped Precipitation")
+```
+```{julia}
+#Generating Quantiles
+quantiles_obs = quantile(precip_test, [0.25, 0.5, 0.75])
+quantiles_pred = quantile(y_pred, [0.25, 0.5, 0.75])
+```
+
+```{julia}
+#Quantile Mapping
+function quantile_mapping(y_pred, quantiles_pred, quantiles_obs)
+    mapped_values = similar(y_pred)
+    for i in 1:length(y_pred)
+        quantile_index = searchsortedfirst(quantiles_pred, y_pred[i])
+        mapped_values[i] = quantiles_obs[quantile_index]
+    end
+    return mapped_values
+end
+
+y_pred_mapped = quantile_mapping(y_pred, quantiles_pred, quantiles_obs)
 ```
