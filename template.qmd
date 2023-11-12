@@ -4,6 +4,23 @@ subtitle: Precipitation Downscaling
 jupyter: julia-1.9
 date: 2023-11-13
 author: Riley Becker (rb111)
+
+number-sections: true
+code-annotations: hover
+
+kind: "Project"
+Module: "3"
+categories:
+    - "Module 3"
+    - "Project"
+
+format:
+    html: 
+        toc-depth: 3
+    docx: 
+        toc: true
+        toc-depth: 3
+        fig-format: png
 ---
 
 # 1. Intro
@@ -27,6 +44,7 @@ using Unitful
 using DataFrames
 Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 ```
+
 # 2. Data
 ## 2.1. Precipitation Data
 ```{julia}
@@ -301,16 +319,50 @@ combined_aggregated_temps = cat(all_aggregated_temps..., dims=3)
 ## 2.4 Establishing Temperature Variables
 
 ```{julia}
-temp_lat = temp10_lat #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
-temp_lon = temp10_lon #All of the lon data from the different temp datasets are the same, so I represent the lon for the whole temp data just as one of lon variables I made earlier
+temp_lat = temp10_lat[:14] #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
+temp_lon = temp10_lon[30:41] #All of the lon data from the different temp datasets are the same, so I represent the lon for the whole temp data just as one of lon variables I made earlier
 temp_time = combined_aggregated_times
-temp = combined_aggregated_temps
+temp = combined_aggregated_temps[30:41,:14,:]
 ```
-```{julia}
-heatmap(temp_lon, temp_lat, temp[:,:,1]'; xlabel="Longitude", ylabel="Latitude", title="Temperature on $(temp_time[1])")
-```
+:::{.callout-note}
+I'm also matching the latitude and longitude ranges of the temperature data to match with the precipitation data here. 
 ```{julia}
 @assert temp_time == precip_time
+```
+
+## 2.5 Filtering Data for Desired Latitude & Longitude Range
+```{julia}
+function subset_temperature_data(temp_lat, temp_lon, temp_data, target_lat_range, target_lon_range)
+    lat_indices = findall(x -> x >= target_lat_range[1] && x <= target_lat_range[2], temp_lat)
+    lon_indices = findall(x -> x >= target_lon_range[1] && x <= target_lon_range[2], temp_lon)
+
+    subset_temp_lat = temp_lat[lat_indices]
+    subset_temp_lon = temp_lon[lon_indices]
+
+    subset_temp_data = temp_data[lat_indices, lon_indices, :]
+
+    return subset_temp_lat, subset_temp_lon, subset_temp_data
+end
+```
+```{julia}
+# Specify the desired latitude and longitude ranges for temperature data
+target_lat_range = (25.0f0, 37.0f0)
+target_lon_range = (-102.0f0, -90.0f0)
+
+# Call the function to get the subset of temperature data
+subset_temp_lat, subset_temp_lon, subset_temp = subset_temperature_data(
+    temp_lat, temp_lon, temp, target_lat_range, target_lon_range
+)
+```
+```{julia}
+# Update temperature variables with the subset
+temp_lat = subset_temp_lat
+temp_lon = subset_temp_lon
+temp = subset_temp
+```
+
+```{julia}
+heatmap(temp_lon, temp_lat, temp[:,:,1]'; xlabel="Longitude", ylabel="Latitude", title="Temperature on $(temp_time[1])")
 ```
 
 # 3. Splitting Data into Testing & Training data
@@ -358,13 +410,183 @@ temp_mat_test = preprocess(temp_test, temp_train)
 # 5. Principal Components
 ## 5.1 Fitting
 ```{julia}
-pca_model = fit(PCA, temp_mat_train; maxoutdim=20, pratio=0.99);
+pca_model = fit(PCA, temp_mat_train; maxoutdim=10, pratio=0.99);
 pca_model
 ```
 ```{julia}
-p1 = plot(principalvars(pca_model)/var(pca_model); xlabel="# of PC's", ylabel= "Fraction of Variance Explained", label = false, title= "Variance Explained")
+p1 = plot(principalvars(pca_model)/var(pca_model); xlabel="# of PC's", xticks= [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], ylabel= "Fraction of Variance Explained", label = false, title= "Variance Explained")
 
-p2 = plot(cumsum(principalvars(pca_model))/var(pca_model); xlabel="# of PC's", ylabel= "Fraction of Variance Explained", label = false, title= "Cumulative Variance Explained")
+p2 = plot(cumsum(principalvars(pca_model))/var(pca_model); xlabel="# of PC's", xticks= [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], ylabel= "Fraction of Variance Explained", label = false, title= "Cumulative Variance Explained")
 
-plot(p1,p2; layout(1,2), size=(800,400))
+plot(p1,p2; layout=(1,2), size=(900,400))
+```
+
+```{julia}
+p = []
+for i in 1:4
+    pc = projection(pca_model)[:, i]
+    pc_reshape = reshape(pc, n_lon, n_lat)'
+    pi = heatmap(
+        temp_lon,
+        temp_lat,
+        pc_reshape;
+        xlabel="Longitude",
+        ylabel="Latitude",
+        title="PC $i",
+        aspect_ratio=:equal,
+        cmap=:PuOr
+    )
+    push!(p, pi)
+end
+plot(p...; layout=(1, 4), size=(1800, 600))
+```
+
+```{julia}
+pc_ts = predict(pca_model, temp_mat_train)
+day_of_year = Dates.dayofyear.(temp_time)
+p = []
+for i in 1:4
+    pi = scatter(
+        day_of_year,
+        pc_ts[i, :];
+        xlabel="Day of Year",
+        ylabel="PC $i",
+        title="PC $i",
+        label=false,
+        alpha=0.3,
+        color=:gray
+    )
+    push!(p, pi)
+end
+plot(p...; layout=(1, 4), size=(1800, 600))
+```
+
+```{julia}
+avg_precip =ustrip.(u"mm", [mean(skipmissing(precip_train[:, :, t])) for t in 1:size(precip_train, 4)])
+avg_precip = replace(avg_precip, NaN => 0)
+
+p1_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
+p1 = scatter(
+    pc_ts[2, :],
+    pc_ts[3, :];
+    zcolor=avg_precip[p1_idx],
+    xlabel="PC 2",
+    ylabel="PC 3",
+    markersize=3,
+    clims=(0, 2.75),
+    title="Rainy Days",
+    label=false
+)
+
+p2_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
+p2 = scatter(
+    pc_ts[4, p2_idx],
+    pc_ts[3, p2_idx];
+    zcolor=avg_precip[p2_idx],
+    xlabel="PC 4",
+    ylabel="PC 3",
+    markersize=5,
+    clims=(0, 2.75),
+    title="Rainy Days",
+    label=false
+)
+
+p3_idx = findall(avg_precip .> quantile(avg_precip, 0.98))
+p3 = scatter(
+    pc_ts[4, p3_idx],
+    pc_ts[2, p3_idx];
+    zcolor=avg_precip[p3_idx],
+    xlabel="PC 4",
+    ylabel="PC 2",
+    markersize=5,
+    clims=(0, 2.75),
+    title="Rainy Days",
+    label=false
+)
+
+plot(p1, p2, p3; size=(1800, 600), link=:both)
+```
+
+# 6. K-NN
+
+```{julia}
+function euclidean_distance(x::AbstractVector, y::AbstractVector)::AbstractFloat
+    return sqrt(sum((x .- y) .^ 2))
+end
+function nsmallest(x::AbstractVector, n::Int)::Vector{Int}
+    idx = sortperm(x)
+return idx[1:n]
+end
+function knn(X::AbstractMatrix, X_i::AbstractVector, K::Int)::Tuple{Int,AbstractVector}
+    # calculate the distances between X_i and each row of X
+    dist = [euclidean_distance(X_i, X[j, :]) for j in 1:size(X, 1)]
+    idx = nsmallest(dist, K)
+    w = 1 ./ dist[idx]
+    w ./= sum(w)
+    idx_sample = sample(idx, Weights(w))
+    return (idx_sample, vec(X[idx_sample, :]))
+end
+```
+
+```{julia}
+function predict_knn(temp_train, temp_test, precip_train; n_pca::Int)
+    X_train = preprocess(temp_train, temp_train)
+    X_test = preprocess(temp_test, temp_train)
+
+    # fit the PCA model to the training data
+    pca_model = fit(PCA, X_train; maxoutdim=n_pca)
+
+    # project the test data onto the PCA basis
+    train_embedded = predict(pca_model, X_train)
+    test_embedded = predict(pca_model, X_test)
+
+    # use the `knn` function for each point in the test data
+    precip_pred = map(1:size(X_test, 2)) do i
+        idx, _ = knn(train_embedded', test_embedded[:, i], 3)
+        precip_train[:, :, idx]
+    end
+# return a matrix of predictions
+    return precip_pred
+end
+
+predict_knn
+```
+
+
+```{julia}
+t_sample = rand(1:size(temp_test, 3), 3)
+precip_pred = predict_knn(temp_train, temp_test[:, :, t_sample], precip_train; n_pca=3)
+
+p = map(eachindex(t_sample)) do ti
+    t = t_sample[ti]
+    y_pred = precip_pred[ti]'
+    y_actual = precip_test[:, :, t]'
+    cmax = max(maximum(skipmissing(y_pred)), maximum(skipmissing(y_actual)))
+    cmax = ustrip(u"mm", cmax)
+
+    p1 = heatmap(
+        precip_lon,
+        precip_lat,
+        y_pred;
+        xlabel="Longitude",
+        ylabel="Latitude",
+        title="Predicted",
+        aspect_ratio=:equal,
+        clims=(0, cmax)
+    )
+
+    p2 = heatmap(
+        precip_lon,
+        precip_lat,
+        y_actual;
+        xlabel="Longitude",
+        ylabel="Latitude",
+        title="Actual",
+        aspect_ratio=:equal,
+        clims=(0, cmax)
+    )
+
+    plot(p1, p2; layout=(2, 1), size=(1000, 400))
+end
+plot(p...; layout=(2, 3), size=(1500, 1200))
 ```
