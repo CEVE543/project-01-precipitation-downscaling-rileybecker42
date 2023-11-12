@@ -27,214 +27,344 @@ using Unitful
 using DataFrames
 Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 ```
-
 # 2. Data
-## 2a. Precipitation Data
+## 2.1. Precipitation Data
 ```{julia}
 precip_ds = NCDataset("data/raw/precip_tx.nc") #loading in the precip_tx.nc dataset
 ```
 ```{julia}
 # Here, I'm creating variables from the precip_tx.nc dataset.
-precip_time = precip_ds["time"][732:end]
+precip_time = precip_ds["time"][11324:15341] #saving the time data from 2010 through 2020
 precip_time = Date.(precip_time)
 precip_lon = precip_ds["lon"][:]
 precip_lat = precip_ds["lat"][:]
 precip_lat = reverse(precip_lat) #The latitude needs to be reversed.
-precip = (precip_ds["precip"][:, :, 732:end])*.1u"mm" #this precipitation data is in millimeters, so I'm adding in units.
+precip = (precip_ds["precip"][:, :,11324:15341])*.1u"mm" #this precipitation data is in millimeters, so I'm adding in units.
 precip = reverse(precip, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the precipitation data.
+
+display(precip_ds[:precip])
 ```
 ```{julia}
 close(precip_ds) #closing the dataset
 ```
-
 ```{julia}
-close(temp_ds)
+heatmap(precip_lon, precip_lat, precip[:,:,1]';xlabel="Longitude", ylabel="Latitude", title="Preipitation on $(precip_time[1])")
 ```
-## 2b. Temperature Data
-### Loading in Temperature Data
-```{julia}
-function open_mfdataset(files::Vector{String}, variable_name::AbstractString)
-    # Lists to store variable data, time data, and other coordinate data
-    var_data_list = []
-    time_data_list = []
-    coords_data_dict = Dict()
 
-    # Open the first file to get the coordinate names (excluding time and the main variable)
-    ds = Dataset(files[1])
-    dimnames = keys(ds.dim)
-    coord_names = setdiff(collect(dimnames), [variable_name, "time"])
+
+## 2.2 Temperature Data
+
+### Loading in Temperature Data Year by Year
+```{julia}
+temp10_ds = NCDataset("data/raw/2m_temperature_2010.nc") 
+```
+```{julia}
+# Here, I'm creating variables from the 2m_temperature_2010.nc dataset.
+temp10_time = temp10_ds["time"]
+temp10_time = Date.(temp10_time)
+temp10_lon = temp10_ds["longitude"][:]
+temp10_lat = temp10_ds["latitude"][:]
+temp10_lat = reverse(temp10_lat) #The latitude needs to be reversed.
+temp10 = (temp10_ds["t2m"][:, :,:])*.1u"K" #this temp data is in Kelvin, so I'm adding in units.
+temp10 = reverse(temp10, dims=2) #Because we reversed the latitude, we need to do the same in the second dimension of the temperature data.
+```
+```{julia}
+close(temp10_ds)
+```
+
+### Repeating this step for temp datasets from 2011 to 2020
+```{julia}
+temp11_ds = NCDataset("data/raw/2m_temperature_2011.nc") 
+```
+```{julia}
+
+temp11_time = temp11_ds["time"]
+temp11_time = Date.(temp11_time)
+temp11_lon = temp11_ds["longitude"][:]
+temp11_lat = temp11_ds["latitude"][:]
+temp11_lat = reverse(temp11_lat) 
+temp11 = (temp11_ds["t2m"][:, :,:])*.1u"K" 
+temp11 = reverse(temp11, dims=2)
+```
+```{julia}
+close(temp11_ds)
+```
+
+
+```{julia}
+temp12_ds = NCDataset("data/raw/2m_temperature_2012.nc") 
+```
+```{julia}
+temp12_time = temp12_ds["time"]
+temp12_time = Date.(temp12_time)
+temp12_lon = temp12_ds["longitude"][:]
+temp12_lat = temp12_ds["latitude"][:]
+temp12_lat = reverse(temp12_lat) 
+temp12 = (temp12_ds["t2m"][:, :,:])*.1u"K" 
+temp12 = reverse(temp12, dims=2) 
+```
+```{julia}
+close(temp12_ds)
+```
+
+
+```{julia}
+temp13_ds = NCDataset("data/raw/2m_temperature_2013.nc") 
+```
+```{julia}
+
+temp13_time = temp13_ds["time"]
+temp13_time = Date.(temp13_time)
+temp13_lon = temp13_ds["longitude"][:]
+temp13_lat = temp13_ds["latitude"][:]
+temp13_lat = reverse(temp13_lat)
+temp13 = (temp13_ds["t2m"][:, :,:])*.1u"K" 
+temp13 = reverse(temp13, dims=2)
+```
+```{julia}
+close(temp13_ds)
+```
+
+
+```{julia}
+temp14_ds = NCDataset("data/raw/2m_temperature_2014.nc") 
+```
+```{julia}
+temp14_time = temp14_ds["time"]
+temp14_time = Date.(temp14_time)
+temp14_lon = temp14_ds["longitude"][:]
+temp14_lat = temp14_ds["latitude"][:]
+temp14_lat = reverse(temp14_lat) 
+temp14 = (temp14_ds["t2m"][:, :,:])*.1u"K" 
+temp14 = reverse(temp14, dims=2) 
+```
+```{julia}
+close(temp14_ds)
+```
+
+
+```{julia}
+temp15_ds = NCDataset("data/raw/2m_temperature_2015.nc") 
+```
+```{julia}
+temp15_time = temp15_ds["time"]
+temp15_time = Date.(temp15_time)
+temp15_lon = temp15_ds["longitude"][:]
+temp15_lat = temp15_ds["latitude"][:]
+temp15_lat = reverse(temp15_lat) 
+temp15 = (temp15_ds["t2m"][:, :,:])*.1u"K" 
+temp15 = reverse(temp15, dims=2) 
+```
+```{julia}
+close(temp15_ds)
+```
+
+
+```{julia}
+temp16_ds = NCDataset("data/raw/2m_temperature_2016.nc") 
+```
+```{julia}
+
+temp16_time = temp16_ds["time"]
+temp16_time = Date.(temp16_time)
+temp16_lon = temp16_ds["longitude"][:]
+temp16_lat = temp16_ds["latitude"][:]
+temp16_lat = reverse(temp16_lat) 
+temp16 = (temp16_ds["t2m"][:, :,:])*.1u"K" 
+temp16 = reverse(temp16, dims=2) 
+```
+```{julia}
+close(temp16_ds)
+```
+
+```{julia}
+temp17_ds = NCDataset("data/raw/2m_temperature_2017.nc") 
+```
+```{julia}
+
+temp17_time = temp17_ds["time"]
+temp17_time = Date.(temp17_time)
+temp17_lon = temp17_ds["longitude"][:]
+temp17_lat = temp17_ds["latitude"][:]
+temp17_lat = reverse(temp17_lat) 
+temp17 = (temp17_ds["t2m"][:, :,:])*.1u"K" 
+temp17 = reverse(temp17, dims=2)
+```
+```{julia}
+close(temp17_ds)
+```
+
+
+```{julia}
+temp18_ds = NCDataset("data/raw/2m_temperature_2018.nc") 
+```
+```{julia}
+temp18_time = temp18_ds["time"]
+temp18_time = Date.(temp18_time)
+temp18_lon = temp18_ds["longitude"][:]
+temp18_lat = temp18_ds["latitude"][:]
+temp18_lat = reverse(temp18_lat) 
+temp18 = (temp18_ds["t2m"][:, :,:])*.1u"K" 
+temp18 = reverse(temp18, dims=2)
+```
+```{julia}
+close(temp18_ds)
+```
+
+```{julia}
+temp19_ds = NCDataset("data/raw/2m_temperature_2019.nc") 
+```
+```{julia}
+temp19_time = temp19_ds["time"]
+temp19_time = Date.(temp19_time)
+temp19_lon = temp19_ds["longitude"][:]
+temp19_lat = temp19_ds["latitude"][:]
+temp19_lat = reverse(temp19_lat)
+temp19 = (temp19_ds["t2m"][:, :,:])*.1u"K" 
+temp19 = reverse(temp19, dims=2)
+```
+```{julia}
+close(temp19_ds)
+```
+
+
+```{julia}
+temp20_ds = NCDataset("data/raw/2m_temperature_2020.nc") 
+```
+```{julia}
+
+temp20_time = temp20_ds["time"]
+temp20_time = Date.(temp20_time)
+temp20_lon = temp20_ds["longitude"][:]
+temp20_lat = temp20_ds["latitude"][:]
+temp20_lat = reverse(temp20_lat) 
+temp20 = (temp20_ds["t2m"][:, :,:])*.1u"K" 
+temp20 = reverse(temp20, dims=2)
+```
+```{julia}
+close(temp20_ds)
+```
+
+## 2.3 Creating One Large Dataset That Combines all Temp Dat & Converting Times to Daily Instead of Hourly
+
+```{julia}
+# Function to read temperature data for a given year
+function read_temperature_data(year)
+    ds = NCDataset("data/raw/2m_temperature_$(year).nc")
+    
+    time = Date.(ds["time"])
+    lon = ds["longitude"][:]
+    lat = reverse(ds["latitude"][:])
+    temp = (ds["t2m"][:, :, :]) * 0.1u"K"
+    temp = reverse(temp, dims=2)
+    
     close(ds)
-
-    # Initialize lists for each coordinate in coords_data_dict
-    for coord in coord_names
-        coords_data_dict[coord] = []
-    end
-
-    # Open each file, extract data, and store in lists
-    for file in files
-        ds = Dataset(file)
-
-        # Store variable and time data
-        push!(var_data_list, ds[variable_name][:])
-        push!(time_data_list, ds["time"][:])
-
-        # Store other coordinate data
-        for coord in coord_names
-            push!(coords_data_dict[coord], ds[coord][:])
-        end
-
-        close(ds)
-    end
-
-    # Pair variable data with time data and sort by time
-    sorted_pairs = sort(collect(zip(time_data_list, var_data_list)); by=x -> x[1])
-    sorted_time_data = [pair[1] for pair in sorted_pairs]
-    sorted_var_data = [pair[2] for pair in sorted_pairs]
-
-    # Concatenate sorted data
-    concatenated_data_dict = Dict(
-        variable_name => vcat(sorted_var_data...), "time" => vcat(sorted_time_data...)
-    )
-
-    # Concatenate coordinate data and add to the dictionary
-    for coord in coord_names
-        concatenated_data_dict[coord] = vcat(coords_data_dict[coord]...)
-    end
-
-    return concatenated_data_dict
-end
-```
-
-
-
-```{julia}
-using CDSAPI
-base_path = "data/raw"
-files = ["2m_temperature_1979.nc","2m_temperature_1980.nc","2m_temperature_1981.nc","2m_temperature_1982.nc","2m_temperature_1983.nc","2m_temperature_1984.nc", "2m_temperature_1985.nc","2m_temperature_1986.nc", "2m_temperature_1987.nc", "2m_temperature_1988.nc", "2m_temperature_1989.nc", "2m_temperature_1990.nc", "2m_temperature_1991.nc", "2m_temperature_1992.nc","2m_temperature_1993.nc","2m_temperature_1994.nc","2m_temperature_1995.nc","2m_temperature_1996.nc","2m_temperature_1997.nc","2m_temperature_1998.nc","2m_temperature_1999.nc","2m_temperature_2000.nc","2m_temperature_2001.nc","2m_temperature_2002.nc","2m_temperature_2003.nc","2m_temperature_2004.nc","2m_temperature_2005.nc","2m_temperature_2006.nc","2m_temperature_2007.nc","2m_temperature_2008.nc","2m_temperature_2009.nc","2m_temperature_2010.nc","2m_temperature_2011.nc","2m_temperature_2012.nc","2m_temperature_2013.nc","2m_temperature_2014.nc","2m_temperature_2015.nc","2m_temperature_2016.nc","2m_temperature_2017.nc","2m_temperature_2018.nc","2m_temperature_2019.nc","2m_temperature_2020.nc","2m_temperature_2021.nc","2m_temperature_2022.nc", "2m_temperature_2023.nc"]
-```
-```{julia}
-file_paths = [joinpath(base_path, file) for file in files]
-```
-```{julia}
-t2m = open_mfdataset(file_paths, "t2m")
-```
-
-
-
-### Temperature Variables
-
-```{julia}
-start_date = Date(t2m["time"][1])
-end_date = Date(t2m["time"][end])
-
-println(start_date)
-println(end_date)
-
-# Calculate the number of days between the two dates
-num_days = (end_date) - (start_date) 
-num_days = Dates.value(num_days) + 1
-num_years = (Dates.year(end_date) - Dates.year(start_date)) + 1
-
-println("Number of days from $(Dates.year(start_date)) to $(Dates.year(end_date)): $num_days and $num_years years" )
-
-n_lon = Int(length(t2m["longitude"])/(num_years))
-n_lat = Int(length(t2m["latitude"])/(num_years))
-
-temp_long = t2m["longitude"][1:n_lon]
-temp_lat = t2m["latitude"][1:n_lat]
-
-println("n_lon = $n_lon ")
-println("n_lat = $n_lat ")
-
-data_dict_temp = reshape(t2m["t2m"], (n_lon,n_lat,num_days*24))
-
-```
-```{julia}
-#Creating a function that transforms time & temperature to daily instead of hourly
-function hourly_to_daily(hourly_data, timestamps)
-    daily_data = Union{Missing, Float64}[]
-    unique_dates = unique(Dates.Date.(timestamps))
     
+    return time, lon, lat, temp
+end
+
+# Function to aggregate hourly data to daily data
+function aggregate_to_daily(time, temp)
+    unique_dates = unique(time)
+    daily_temp = []
+
     for date in unique_dates
-        indices = findall(x -> Dates.Date(x) == date, timestamps)
-        daily_value = mean(hourly_data[indices])
-        push!(daily_data, daily_value)
+        indices = findall(x -> x == date, time)
+        daily_mean = mean(temp[:, :, indices], dims=3)
+        push!(daily_temp, daily_mean)
     end
-    
-    return daily_data, unique_dates
+
+    return unique_dates, cat(daily_temp..., dims=3)
 end
 
-# Assuming "t2m" is the hourly temperature data, and "time" is the corresponding timestamps
-hourly_temperature = t2m["t2m"]
-timestamps = t2m["time"]
+# Years to process
+years = 2010:2020
 
-daily_temperature, daily_dates = hourly_to_daily(hourly_temperature, timestamps)
+# Initialize arrays to store aggregated data
+all_aggregated_times = []
+all_aggregated_temps = []
 
-# Create a new dictionary for daily data
-daily_t2m = Dict(
-    "latitude" => t2m["latitude"],
-    "longitude" => t2m["longitude"],
-    "time" => daily_dates,
-    "t2m" => daily_temperature
-)
-# Print the first few elements of the new daily data
-daily_t2m
+# Loop over years and read/aggregate data
+for year in years
+    time, _, _, temp = read_temperature_data(year)
+    aggregated_times, aggregated_temp = aggregate_to_daily(time, temp)
+    
+    push!(all_aggregated_times, aggregated_times)
+    push!(all_aggregated_temps, aggregated_temp)
+end
+
+# Combine aggregated data
+combined_aggregated_times = cat(all_aggregated_times..., dims=1)
+combined_aggregated_temps = cat(all_aggregated_temps..., dims=3)
 ```
+
+## 2.4 Establishing Temperature Variables
 
 ```{julia}
-temp_lat = reverse(daily_t2m["latitude"])
-temp_lon = daily_t2m["longitude"]
-temp_time = daily_t2m["time"][732:16365]
-temp = daily_t2m["t2m"][732:16365]
+temp_lat = temp10_lat #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
+temp_lon = temp10_lon #All of the lon data from the different temp datasets are the same, so I represent the lon for the whole temp data just as one of lon variables I made earlier
+temp_time = combined_aggregated_times
+temp = combined_aggregated_temps
 ```
 ```{julia}
-reshaped_t2m = permutedims(reshape(temp, length(temp_lat), length(temp_lon), :), (3, 1, 2))
+heatmap(temp_lon, temp_lat, temp[:,:,1]'; xlabel="Longitude", ylabel="Latitude", title="Temperature on $(temp_time[1])")
 ```
-
 ```{julia}
 @assert temp_time == precip_time
 ```
+
+# 3. Splitting Data into Testing & Training data
 ```{julia}
-time = Date.(precip_time)
-```
-
-```julia
-# Here I'm reshaping the t2m dictionary (from get_data.jl) into a matrix
-# Extract t2m values
-temp = t2m["t2m"]
-
-# Assuming the other vectors are consistent in length
-rows = length(daily_t2m["time"])
-cols = length(daily_t2m["latitude"]) * length(daily_t2m["longitude"])
-
-# Reshape t2m into a matrix
-temp_matrix = reshape(t2m, rows, cols)
-```
-
-# 3. Splitting Data
-```{julia}
-#ADD IN NOTES HERE
-test_start_date = Date(2010, 12, 18) #CHANGE THIS
-test_start_index = searchsortedfirst(time, test_start_date)
+test_start_date = Date(2017, 09, 13) #Splitting the test and training data 70%-30%
+test_start_index = searchsortedfirst(temp_time, test_start_date)
 ```
 ```{julia}
 # Here I'm splitting my data into training & testing sets
 
 precip_train = precip[:, :, 1:test_start_index - 1]
-
 precip_test = precip[:, :, test_start_index:end]
-```
-```{julia}
-temp_train = temp[1:test_start_index - 1]
 
-temp_test = temp[test_start_index:end]
-```
-```{julia}
-time_train = time[1:test_start_index - 1]
-time_test = time[test_start_index:end]
+temp_train = temp[:, :, 1:test_start_index - 1]
+temp_test = temp[:, :, test_start_index:end]
+
+time_train = temp_time[1:test_start_index - 1]
+time_test = temp_time[test_start_index:end]
 ```
 
 # 4. Preprocessing
 ```{julia}
-
 # ADD IN EXPLANATION AS TO WHAT IM PREPROCESSING & WHY
+
+function preprocess(temp::Array{T,3}, temp_ref::Array{T,3})::AbstractMatrix where {T}
+    n_lon, n_lat, n_t = size(temp)
+    climatology = mean(temp_ref; dims=3)
+    temp_anom = temp .- climatology
+
+    #reshape to 2D
+    temp_anom = reshape(temp_anom, n_lon * n_lat, n_t)
+
+    #stripping units
+    return ustrip.(u"K", temp_anom)
+end
+```
+
+```{julia}
+#output: false
+n_lon,n_lat,n_t =size(temp)
+temp_mat_train = preprocess(temp_train, temp_train)
+temp_mat_test = preprocess(temp_test, temp_train)
+```
+
+# 5. Principal Components
+## 5.1 Fitting
+```{julia}
+pca_model = fit(PCA, temp_mat_train; maxoutdim=20, pratio=0.99);
+pca_model
+```
+```{julia}
+p1 = plot(principalvars(pca_model)/var(pca_model); xlabel="# of PC's", ylabel= "Fraction of Variance Explained", label = false, title= "Variance Explained")
+
+p2 = plot(cumsum(principalvars(pca_model))/var(pca_model); xlabel="# of PC's", ylabel= "Fraction of Variance Explained", label = false, title= "Cumulative Variance Explained")
+
+plot(p1,p2; layout(1,2), size=(800,400))
+```
