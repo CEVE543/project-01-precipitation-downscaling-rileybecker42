@@ -583,8 +583,8 @@ function train_random_forest(temp_train, temp_test::Any, precip_train::Any; n_pc
     y_train = avg_precip
 
     # Flatten to 2D arrays
-    train_embedded = predict(PCA_model, X_train)
-    test_embedded = predict(PCA_model, X_test)
+    train_embedded = StatsBase.predict(PCA_model, X_train)
+    test_embedded = StatsBase.predict(PCA_model, X_test)
 
     y_train_no_missing = avg_precip[.!ismissing.(avg_precip)]
 
