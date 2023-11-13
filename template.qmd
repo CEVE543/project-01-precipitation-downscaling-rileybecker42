@@ -500,7 +500,7 @@ function euclidean_distance(x::AbstractVector, y::AbstractVector)::AbstractFloat
 end
 function nsmallest(x::AbstractVector, n::Int)::Vector{Int}
     idx = sortperm(x)
-return idx[1:n]
+    return idx[1:n]
 end
 function knn(X::AbstractMatrix, X_i::AbstractVector, K::Int)::Tuple{Int,AbstractVector}
     # calculate the distances between X_i and each row of X
@@ -512,7 +512,6 @@ function knn(X::AbstractMatrix, X_i::AbstractVector, K::Int)::Tuple{Int,Abstract
     return (idx_sample, vec(X[idx_sample, :]))
 end
 ```
-
 ```{julia}
 function predict_knn(temp_train, temp_test, precip_train; n_pca::Int)
     X_train = preprocess(temp_train, temp_train)
@@ -576,75 +575,83 @@ plot(p...; layout=(2, 3), size=(1500, 1200))
 ```
 
 
-# 7. Model #2: Random Forests Model
+# 7. Quantile-Quantile Mapping: Bias Correction
 
 ```{julia}
-# Making temp_mat_train and temp_mat_test are preprocessed temperature data
-X_train1 = temp_mat_train'
-X_test1 = temp_mat_test'
+# 
+function knn_quantile_mapping(temp_train, temp_test, precip_train, precip_test; n_pca::Int,)
+    # KNN prediction
+    precip_pred = predict_knn(temp_train, temp_test, precip_train, n_pca=n_pca)
+    y_pred = precip_pred[1:3]  
 
-# Making avg_precip my target variable (response variable)
-y_train1 = avg_precip
+    
+    y_actual = precip_test[:,:,1:3] # Actual precip values
+
+    # Reshape y_pred for QQ Mapping
+    y_pred_qq = reshape(y_pred, length(precip_lon)*length(precip_lat))
+    y_actual = reshape(y_actual, length(precip_lon)*length(precip_lat))
+    # Quantile mapping
+    q = 0.7  # Use the desired quantile
+    quantile_pred = quantile(skipmissing(y_pred_qq), q)
+
+    for i in 1:length(y_pred_qq)
+        if !ismissing(y_pred_qq[i])
+            # Calculate the quantile of the predicted value in the predicted distribution
+            point_quantile = searchsortedfirst(sort(y_pred_qq), y_pred_qq[i]) / length(y_pred_qq)
+
+            # Find the quantile of value
+            quantile_actual = quantile(skipmissing(y_actual), point_quantile)
+
+            # Adjust the predicted value 
+            y_pred_qq[i] = quantile_actual
+        end
+    end
+
+    # Return a matrix of predictions
+    precip_pred_qq = reshape(y_pred_qq, length(precip_lon), length(precip_lat))
+
+    return precip_pred_qq
+end
+```
+
+```{julia}
+t_sample = [1:3]
+precip_pred_qq = knn_quantile_mapping(temp_train, temp_test[:, :, 1:3], precip_train, precip_test; n_pca=3)
 ```
 ```{julia}
-# Number of decision trees in the forest
-n_trees = 10
+p = map(eachindex(t_sample)) do ti
+    t = t_sample[ti]
+    y_actual = precip_test[:, :, t]'
+    cmax = max(maximum(skipmissing(y_pred_qq)), maximum(skipmissing(y_actual)))
+    cmax = ustrip(u"mm", cmax)
 
-# Train the Random Forest model
-model = build_forest(y_train1, X_train1, n_trees)
-```
-```{julia}
-# Make predictions on the testing data
-y_pred = apply_forest(model, X_test1)
+    p1 = heatmap(
+        precip_lon,
+        precip_lat,
+        y_pred_qq';
+        xlabel="Longitude",
+        ylabel="Latitude",
+        title="Predicted (Quantile Mapping)",
+        aspect_ratio=:equal,
+        clims=(0, cmax)
+    )
+    p2 = heatmap(
+        precip_lon,
+        precip_lat,
+        y_actual;
+        xlabel="Longitude",
+        ylabel="Latitude",
+        title="Actual",
+        aspect_ratio=:equal,
+        clims=(0, cmax)
+    )
+    plot(p1, p2; layout=(2, 1), size=(1000, 400))
+end
+plot(p...; layout=(2, 3), size=(1400, 1200))
 ```
 
+```
+
+```
 # 8. Quantile-Quantile Mapping: Bias Correction
 
-```{julia}
-function qq_mapping(predicted_data, observed_data)
-    # Flatten the arrays
-    predicted_flat = vec(skipmissing(predicted_data))
-    observed_flat = vec(skipmissing(observed_data))
-
-    # Sort the data
-    sort_predicted = sort(predicted_flat)
-    sort_observed = sort(observed_flat)
-
-    # Calculate quantiles
-    quantiles_predicted = collect(1:length(sort_predicted)) / length(sort_predicted)
-    quantiles_observed = collect(1:length(sort_observed)) / length(sort_observed)
-
-    # Map quantiles using interpolation
-    mapped_values = interp1(quantiles_predicted, sort_predicted, quantiles_observed)
-
-    # Reshape the mapped values to the original shape
-    mapped_precipitation = reshape(mapped_values, size(observed_data))
-
-    return mapped_precipitation
-end
-
-# Apply Q-Q mapping
-mapped_precipitation = qq_mapping(precip_pred, precip_test)
-
-# Visualization of Q-Q mapping results
-heatmap(precip_lon, precip_lat, mapped_precipitation[:, :, 1]'; xlabel="Longitude", ylabel="Latitude", title="Mapped Precipitation")
-```
-```{julia}
-#Generating Quantiles
-quantiles_obs = quantile(precip_test, [0.25, 0.5, 0.75])
-quantiles_pred = quantile(y_pred, [0.25, 0.5, 0.75])
-```
-
-```{julia}
-#Quantile Mapping
-function quantile_mapping(y_pred, quantiles_pred, quantiles_obs)
-    mapped_values = similar(y_pred)
-    for i in 1:length(y_pred)
-        quantile_index = searchsortedfirst(quantiles_pred, y_pred[i])
-        mapped_values[i] = quantiles_obs[quantile_index]
-    end
-    return mapped_values
-end
-
-y_pred_mapped = quantile_mapping(y_pred, quantiles_pred, quantiles_obs)
-```
