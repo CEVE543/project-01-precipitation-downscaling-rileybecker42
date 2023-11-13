@@ -23,7 +23,7 @@ format:
         fig-format: png
 ---
 
-# 1. Intro
+## 1. Intro
 ```{julia}
 import Pkg; Pkg.add("MultivariateStats")
 import Pkg; Pkg.add("Plots")
@@ -45,8 +45,8 @@ using DecisionTree
 Plots.default(; margin=4Plots.mm, size=(700, 400), linewidth=2)
 ```
 
-# 2. Data
-## 2.1. Precipitation Data
+## 2. Data
+### 2.1. Precipitation Data
 ```{julia}
 precip_ds = NCDataset("data/raw/precip_tx.nc") #loading in the precip_tx.nc dataset
 ```
@@ -70,9 +70,9 @@ heatmap(precip_lon, precip_lat, precip[:,:,1]';xlabel="Longitude", ylabel="Latit
 ```
 
 
-## 2.2 Temperature Data
+### 2.2 Temperature Data
 
-### Loading in Temperature Data Year by Year
+#### Loading in Temperature Data Year by Year
 ```{julia}
 temp10_ds = NCDataset("data/raw/2m_temperature_2010.nc") 
 ```
@@ -90,7 +90,7 @@ temp10 = reverse(temp10, dims=2) #Because we reversed the latitude, we need to d
 close(temp10_ds)
 ```
 
-### Repeating this step for temp datasets from 2011 to 2020
+#### Repeating each step for temp datasets from 2011 to 2020
 ```{julia}
 temp11_ds = NCDataset("data/raw/2m_temperature_2011.nc") 
 ```
@@ -263,7 +263,7 @@ temp20 = reverse(temp20, dims=2)
 close(temp20_ds)
 ```
 
-## 2.3 Creating One Large Dataset That Combines all Temp Dat & Converting Times to Daily Instead of Hourly
+### 2.3 Creating One Large Dataset That Combines all Temp Dat & Converting Times to Daily Instead of Hourly
 
 ```{julia}
 # Function to read temperature data for a given year
@@ -316,7 +316,7 @@ combined_aggregated_times = cat(all_aggregated_times..., dims=1)
 combined_aggregated_temps = cat(all_aggregated_temps..., dims=3)
 ```
 
-## 2.4 Establishing Temperature Variables
+### 2.4 Establishing Temperature Variables
 
 ```{julia}
 temp_lat = temp10_lat[1:14] #All of the lat data from the different temp datasets are the same, so I represent the lat for the whole temp data just as one of lat variables I made earlier
@@ -335,7 +335,7 @@ I'm also matching the latitude and longitude ranges of the temperature data to m
 heatmap(temp_lon, temp_lat, temp[:,:,1]'; xlabel="Longitude", ylabel="Latitude", title="Temperature on $(temp_time[1])")
 ```
 
-# 3. Splitting Data into Testing & Training data
+## 3. Splitting Data into Testing & Training data
 ```{julia}
 test_start_date = Date(2017, 09, 13) #Splitting the test and training data 70%-30%
 test_start_index = searchsortedfirst(temp_time, test_start_date)
@@ -353,7 +353,7 @@ time_train = temp_time[1:test_start_index - 1]
 time_test = temp_time[test_start_index:end]
 ```
 
-# 4. Preprocessing
+## 4. Preprocessing
 
 :::{callout-note}
 ADD IN EXPLANATION AS TO WHAT IM PREPROCESSING & WHY
@@ -379,8 +379,8 @@ temp_mat_train = preprocess(temp_train, temp_train)
 temp_mat_test = preprocess(temp_test, temp_train)
 ```
 
-# 5. Principal Components
-## 5.1 Fitting
+## 5. Principal Components
+###3 5.1 Fitting
 ```{julia}
 pca_model = fit(PCA, temp_mat_train; maxoutdim=10, pratio=0.99);
 pca_model
@@ -493,7 +493,7 @@ plot(p1, p2; size=(1800, 600), link=:both)
 DISCUSS WHAT YOU LEARNED FROM THE PLOTS HERE
 :::
 
-# 6. K-NN Model
+## 6. K-NN Model
 ```{julia}
 function euclidean_distance(x::AbstractVector, y::AbstractVector)::AbstractFloat
     return sqrt(sum((x .- y) .^ 2))
@@ -575,7 +575,7 @@ plot(p...; layout=(2, 3), size=(1500, 1200))
 ```
 
 
-# 7. Quantile-Quantile Mapping: Bias Correction
+## 7. Quantile-Quantile Mapping: Bias Correction
 
 ```{julia}
 # 
@@ -653,5 +653,8 @@ plot(p...; layout=(2, 3), size=(1400, 1200))
 ```
 
 ```
-# 8. Quantile-Quantile Mapping: Bias Correction
+# Model Comparison
+
+
+# Conclusion
 
