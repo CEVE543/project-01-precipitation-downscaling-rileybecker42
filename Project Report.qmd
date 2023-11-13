@@ -615,10 +615,9 @@ function train_random_forest(temp_train, temp_test::Any, precip_train::Any; n_pc
 end
 ```
 
-```{julia}
+``{julia}
 rf_model = train_random_forest(temp_train, temp_test, precip_train; n_pca=3, n_trees=100)
-
-```
+``
 
 
 # Model Comparison
